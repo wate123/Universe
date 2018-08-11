@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <title>Universe</title>
+    <script src="{% static "js/three.js" %}"></script>
+    <script src="{% static "js/OrbitControls.js" %}"></script>
+    <script src="{% static 'js/dat.gui.min.js' %}"></script>
+    <script src="{% static 'js/libs/stats.min.js' %}"></script>
+    <script src="{% static 'js/Detector.js' %}"></script>
+    <script src="{% static 'js/GLTFLoader.js' %}"></script>
+    <script src="{% static 'js/GPUComputationRenderer.js' %}"></script>
+</head>
+<body>
+
+</body>
+{% block js %}
+    <script>
+
+    if (!Detector.webgl) Detector.addGetWebGLMessage();
+    var container, stats;
+    var camera, scene, renderer, geometry, controls;
+
+    var particle;
+
+    var Controller;
+
+    init();
+
+    animate();
+
+    function init() {
+        {#var space = "#151718";#}
+        container = document.createElement('div');
+        document.body.appendChild(container);
+
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 5, 15000);
+        camera.position.y = 120;
+        camera.position.z = 400;
+
+        scene = new THREE.Scene();
+
+        scene.add(new THREE.AmbientLight(0x333333));
+        var light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(5, 3, 5);
+        scene.add(light);
+
+        renderer = new THREE.WebGLRenderer();
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        container.appendChild(renderer.domElement);
+
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+        Controller = {
+            // Can be changed dynamically
+            Start: 1000000,
+            End: 2000000,
+
+            // Must restart simulation
+            radius: 300,
+            height: 8,
+            exponent: 0.4,
+            maxMass: 15.0,
+            velocity: 70,
+            velocityExponent: 0.2,
+            randVelocity: 0.001
+        };
+
+        // initComputeRenderer();
+
+        stats = new Stats();
+        container.appendChild(stats.dom);
+
+        window.addEventListener('resize', onWindowResize, false);
+
+        initGUI();
+        // loader();
+        generateSphere(100);
+
+
+        dynamicValuesChanger();
+
+
+    }
+
+    function generateParticle() {
+
+    }
+
+    function solarSystem() {
+
+    }
+
+    function applyTexture() {
+        ;
+    }
+
+    function generateSphere(size) {
+        var geometry = new THREE.SphereGeometry(size, 32, 32);
+        var material = new THREE.MeshPhongMaterial({
+            map: new THREE.TextureLoader().load('{% static 'assets/solar_system/textures/earth/8k_earth_daymap.jpg' %}'),
+            bumpMap: new THREE.TextureLoader().load('{% static 'assets/solar_system/textures/earth/earthbump1k.jpg' %}'),
+            bumpScale: 0.005,
+            specularMap: new THREE.TextureLoader().load('{% static 'assets/solar_system/textures/earth/8k_earth_specular_map.tif' %}'),
+        });
+        var mesh = new THREE.Mesh(geometry, material);
+        scene.add(mesh);
+        return mesh;
+    }
+
+    function loader() {
+        var loader = new THREE.GLTFLoader();
+        loader.load('assets/solar_system/scene.gltf', function (gltf) {
+            // gltf.scene.traverse(function (child) {
+            //   // if(child.isMesh){
+            //   //   child.material.envMap = envMap;
+            //   // }
+            // })
+            scene.add(gltf.scene);
+        })
+    }
+
+    function onWindowResize() {
+
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function dynamicValuesChanger() {
+
+    }
+
+    function initGUI() {
+
+        var gui = new dat.GUI();
+
+        var folder1 = gui.addFolder('Planet Range');
+
+        folder1.add(Controller, "Start", 1000000, 2000000, 1).onChange(dynamicValuesChanger);
+        folder1.add(Controller, "End", 1000000, 2000000, 1).onChange(dynamicValuesChanger);
+
+        var folder2 = gui.addFolder('Static parameters - press restartSimulation');
+
+        folder2.add(Controller, "radius", 10.0, 1000.0, 1.0);
+
+        folder1.open();
+        folder2.open();
+
+    }
+
+    function getCameraConstant(camera) {
+
+        return window.innerHeight / (Math.tan(THREE.Math.DEG2RAD * 0.5 * camera.fov) / camera.zoom);
+
+    }
+
+
+    function animate() {
+
+        requestAnimationFrame(animate);
+
+        render();
+        stats.update();
+
+    }
+
+    function render() {
+        renderer.render(scene, camera);
+
+    }
+
+</script>
+{% endblock %}
+</html>
