@@ -10,6 +10,7 @@
       crossorigin="anonymous"></script>
     <script src="{% static "js/three.js" %}"></script>
     <script src="{% static "js/OrbitControls.js" %}"></script>
+    <script src="{% static "js/TrackballControls.js" %}"></script>
     <script src="{% static 'js/dat.gui.min.js' %}"></script>
     <script src="{% static 'js/libs/stats.min.js' %}"></script>
     <script src="{% static 'js/Detector.js' %}"></script>
@@ -51,8 +52,11 @@
 
     var Controller;
 
-    init();
+    var skyRadius = 5000;
+    var planetGroup;
+    var pivotPoint;
 
+    init();
     animate();
 
     function init() {
@@ -60,23 +64,26 @@
         container = document.createElement('div');
         document.body.appendChild(container);
 
-        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 5, 15000);
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 30000);
         camera.position.y = 120;
         camera.position.z = 400;
 
         scene = new THREE.Scene();
+        {#scene.background = new THREE.Color( 0xffffff);#}
 
         scene.add(new THREE.AmbientLight(0x333333));
         var light = new THREE.DirectionalLight(0xffffff, 1);
         light.position.set(5, 3, 5);
         scene.add(light);
 
-        renderer = new THREE.WebGLRenderer();
+        renderer = new THREE.WebGLRenderer({antialias: true});
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(window.innerWidth, window.innerHeight);
         container.appendChild(renderer.domElement);
 
         controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.minDistance = 200;
+        controls.maxDistance = 2000;
 
         Controller = {
             // Can be changed dynamically
@@ -103,9 +110,9 @@
         initGUI();
         // loader();
 
-        generateSphere(100);
-        skypedome();
-
+        skyDome();
+        PlanetOrbit();
+        {#console.log({% static 'assets/solar_system/textures/earth/8k_earth_specular_map.tif' %});#}
 
         dynamicValuesChanger();
 
@@ -120,14 +127,13 @@
 
     }
 
-    function applyTexture() {
-        ;
+    function centerOrbit() {
     }
 
-    function skypedome() {
-        var geometry = new THREE.SphereGeometry(3000, 60, 40);
+    function skyDome() {
+        var geometry = new THREE.SphereGeometry(skyRadius, 60, 40);
         var uniforms = {
-          texture: { type: 't', value: THREE.TextureLoader('{% static "assets/solar_system/MilkyWayPanorama8K.jpg" %}') }
+          texture: { type: 't', value: new THREE.TextureLoader().load('{% static "assets/solar_system/MilkyWayPanorama8K.jpg" %}') }
         };
 
         var material = new THREE.ShaderMaterial( {
@@ -138,22 +144,44 @@
 
         skyBox = new THREE.Mesh(geometry, material);
         skyBox.scale.set(-1, 1, 1);
-        skyBox.eulerOrder = 'XZY';
+        skyBox.rotation.order = 'XZY';
         skyBox.renderDepth = 1000.0;
+        skyBox.material.side = THREE.BackSide;
         scene.add(skyBox);
     }
 
-    function generatePlanet(radius, segments) {
+    function PlanetOrbit() {
+        planetGroup = new THREE.Object3D();
+        var planetName = {{ view.planet_names| safe }};
+
+        for (var i = 0; i < planetName.length; i++) {
+            var planet = generatePlanet(planetName[i]);
+            planetGroup.add(planet);
+            {#planet.position.set(0, 0, 0);#}
+            {#scene.add(planet)#}
+        }
+        scene.add(planetGroup);
+        console.log(planetGroup);
+        // Pivot point
+        pivotPoint = new THREE.Object3D();
+        planet.add(pivotPoint);
+    }
+    function generatePlanet(name) {
+        var planet_data = {{ view.get_planet|safe}};
+        var material_data = {};
+        if (planet_data[name].texture_map != null) {
+            material_data["map"] = new THREE.TextureLoader().load({% get_static_prefix %} + planet_data[name].texture_map);
+        }
+        if (planet_data[name].bump_map != null){
+            material_data["bumpMap"] = new THREE.TextureLoader().load({% get_static_prefix %} + planet_data[name].bump_map);
+        }
+        if (planet_data[name].specular_map != null){
+            material_data["specularMap"] = new THREE.TextureLoader().load({% get_static_prefix %} + planet_data[name].specular_map);
+        }
         return new THREE.Mesh(
-            new THREE.SphereGeometry(radius, segments, segments),
-            new THREE.MeshPhongMaterial({
-				map:         THREE.ImageUtils.loadTexture('images/2_no_clouds_4k.jpg'),
-				bumpMap:     THREE.ImageUtils.loadTexture('images/elev_bump_4k.jpg'),
-				bumpScale:   0.005,
-				specularMap: THREE.ImageUtils.loadTexture('images/water_4k.png'),
-				specular:    new THREE.Color('grey')
-			})
-        )
+            new THREE.SphereGeometry(Math.round(planet_data[name].radius), 32, 32),
+            new THREE.MeshPhongMaterial(material_data)
+        );
     }
 
     function generateSphere(size) {
@@ -228,6 +256,10 @@
     }
 
     function render() {
+        for (var i = 0; i < planetGroup.children.length; i++) {
+            var planet = planetGroup.children[i];
+            planet.rotation.y += 0.01;
+        }
         renderer.render(scene, camera);
 
     }
